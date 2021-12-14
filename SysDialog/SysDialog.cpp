@@ -50,6 +50,7 @@ OPENFILENAMEW ofn;
 HANDLE hFile1;
 HANDLE hFile2;
 LPCSTR path_to_file;
+
 // Отправить объявления функций, включенных в этот модуль кода:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
@@ -59,8 +60,9 @@ DWORD   CALLBACK    OpenFileClick(LPVOID);
 DWORD   CALLBACK    OpenFileClick2(LPVOID);
 DWORD   CALLBACK    SaveFileClick(LPVOID);
 DWORD   CALLBACK    TransportFileClick(LPVOID);
-DWORD   CALLBACK    TestDllClick(LPVOID);
+DWORD   CALLBACK    CipherDll(LPVOID);
 DWORD   CALLBACK    CipherClick(LPVOID);
+DWORD   CALLBACK    DecipherClick(LPVOID);
 bool FileExists(LPCTSTR fname);
 bool bchoicer = false;
 bool bchoicel = false;
@@ -174,6 +176,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     switch (message)
     {
     case WM_CREATE: {
+        CipherDll(&hWnd);
         CreateWindowExW(0, L"Button", L"...",
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
             420, 10, 37, 23, hWnd, (HMENU)CMD_OPEN_FIRST_FILE, hInst, NULL);
@@ -187,7 +190,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         fNameStatic2 = CreateWindowExW(0, L"Edit", L"Destination file",
             WS_CHILD | WS_VISIBLE | ES_MULTILINE | ES_READONLY | ES_AUTOHSCROLL,
             10, 40, 400, 23, hWnd, 0, hInst, NULL);
-        editPass = CreateWindowExW(0, L"Edit", L"Password",
+        editPass = CreateWindowExW(0, L"Edit", (LPWSTR)L"",
             WS_CHILD |WS_BORDER | WS_VISIBLE |ES_PASSWORD,
            420, 70, 160, 23, hWnd, 0, hInst, NULL);
         CreateWindowExW(0, L"Button", L"Ciphor",
@@ -268,20 +271,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             SaveFileClick(&hWnd);
             break;
         case CMD_TEST_DLL:
-            TestDllClick(&hWnd);
+            CipherDll(&hWnd);
             break;
         case CMD_CIPHOR_FILE:
-            CipherClick(&hWnd);
+            CreateThread(NULL, 0,
+                CipherClick, &hWnd,
+                0, NULL);
             break;
 
-        case CMD_CIPHER:
-            bchoicer = true;
-            CipherClick(&hWnd);
+        case CMD_DECIPHOR_FILE:
+            CreateThread(NULL, 0,
+                DecipherClick, &hWnd,
+                0, NULL);
             break;
-        case CMD_CIPHER2:
-            bchoicel = true;
-            CipherClick(&hWnd);
-            break;
+
+        
 
        
         case IDM_ABOUT:
@@ -523,7 +527,7 @@ DWORD CALLBACK TransportFileClick(LPVOID params) {
     return 0;
 }
 
-DWORD CALLBACK TestDllClick(LPVOID params) {
+DWORD CALLBACK CipherDll(LPVOID params) {
     HWND hWnd = *((HWND*)params);
 
     if (dll == 0) {
@@ -564,41 +568,57 @@ DWORD CALLBACK TestDllClick(LPVOID params) {
     return 0;
 }
 
-DWORD   CALLBACK    CipherClick(LPVOID params) {
+DWORD CALLBACK CipherClick(LPVOID params) {
     HWND hWnd = *((HWND*)params);
-    if (bchoicer == true) {
-        bchoicer = false;
+    if (GetWindowTextLengthA(editPass) > 4) {
+
+        MessageBoxA(NULL, "Password should be less than 4 characters", "Password is too big", MB_ICONERROR | MB_OK);
+    }
+    else {
         if (cipher == NULL) {
             MessageBoxW(hWnd, L"Press TestDll", L"DLL error", NULL);
             return -1;
-      }
-        char txt[1024];
-        SendMessageA(editor, WM_GETTEXT, 1024, (LPARAM)txt);
-        size_t len = strlen(txt);
-        char pass[] = "12345";
-        char* cod = new char[len + 1];
-        for (size_t i = 0; i < len; i++) {
-            cod[i] = cipher(txt[i], pass[i % 5]);
         }
-        cod[len] = '\0';
-        SendMessageA(crypter, WM_SETTEXT, 0, (LPARAM)cod);
 
-    }
-    
-    if (bchoicel == true) {
-        bchoicel = false;
-        char txt[1024];
-        SendMessageA(crypter, WM_GETTEXT, 1024, (LPARAM)txt);
-        size_t len = strlen(txt);
-        char pass[] = "12345";
-        char* cod = new char[len + 1];
-        for (size_t i = 0; i < len; i++) {
-            cod[i] = decipher(txt[i], pass[i % 5]);
+        char pass[5];
+        SendMessageA(editPass, WM_GETTEXT, 0, (LPARAM)pass);
+        if (pass != NULL) {
+            char txt[1024];
+            SendMessageA(editor, WM_GETTEXT, 1024, (LPARAM)txt);
+            size_t len = strlen(txt);
+
+            char* cod = new char[len + 1];
+            for (size_t i = 0; i < len; i++) {
+                cod[i] = cipher(txt[i], pass[i % 5]);
+            }
+            cod[len] = '\0';
+            SendMessageA(crypter, WM_SETTEXT, 0, (LPARAM)cod);
+       }
+        else {
+            SendMessageA(editPass, WM_GETTEXT, 1024, (LPARAM)L"Oh no");
         }
-        cod[len] = '\0';
-        SendMessageA(editor, WM_SETTEXT, 0, (LPARAM)cod);
+  
+            
+     }
+    
+        
+        
+
+    return 0;
+}
+
+DWORD CALLBACK DecipherClick(LPVOID params) {
+    HWND hWnd = *((HWND*)params);
+    char txt[1024];
+    SendMessageA(crypter, WM_GETTEXT, 1024, (LPARAM)txt);
+    size_t len = strlen(txt);
+    char pass[5];
+    char* cod = new char[len + 1];
+    for (size_t i = 0; i < len; i++) {
+        cod[i] = decipher(txt[i], pass[i % 5]);
     }
-   
+    cod[len] = '\0';
+    SendMessageA(editor, WM_SETTEXT, 0, (LPARAM)cod);
 
     return 0;
 }
