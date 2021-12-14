@@ -32,7 +32,8 @@ typedef char (*crypto_t)(char, char);
 // Глобальные переменные:
 HINSTANCE hInst;                                // текущий экземпляр
 WCHAR szTitle[MAX_LOADSTRING];                  // Текст строки заголовка
-WCHAR szWindowClass[MAX_LOADSTRING];            // имя класса главного окна
+WCHAR szWindowClass[MAX_LOADSTRING];
+WCHAR hookbuff[MAX_LOADSTRING];
 crypto_t cipher, decipher;
 HMODULE dll;
 HWND  fNameStatic;
@@ -42,13 +43,18 @@ HWND  saver;
 HWND  transport;
 HWND  editPass;
 HWND progress;
+HWND cipher_button;
+HWND decipher_button;
+HHOOK kbhook;
 char f1content[1024] = "\0";
 char f2content[1024] = "\0";
+
 OPENFILENAMEW ofn;
 HANDLE hFile1;
 HANDLE hFile2;
 LPCSTR path_to_file;
 
+int HooKbuffCount = 0;
 
 
 // Отправить объявления функций, включенных в этот модуль кода:
@@ -63,6 +69,10 @@ DWORD   CALLBACK    TransportFileClick(LPVOID);
 DWORD   CALLBACK    CipherDll(LPVOID);
 DWORD   CALLBACK    CipherClick(LPVOID);
 DWORD   CALLBACK    DecipherClick(LPVOID);
+DWORD CALLBACK      StartKbHook(LPVOID);
+LRESULT CALLBACK    KbHookProc(int, WPARAM, LPARAM);
+
+
 bool FileExists(LPCTSTR fname);
 bool bchoicer = false;
 bool bchoicel = false;
@@ -196,10 +206,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         editPass = CreateWindowExW(0, L"Edit", L"",
             WS_CHILD |WS_BORDER | WS_VISIBLE | ES_CENTER |ES_PASSWORD ,
            530, 70, 32, 23, hWnd, 0, hInst, NULL);
-        CreateWindowExW(0, L"Button", L"Ciphor",
+        cipher_button = CreateWindowExW(0, L"Button", L"Ciphor",
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
             420, 100, 75, 23, hWnd, (HMENU)CMD_CIPHOR_FILE, hInst, NULL);
-        CreateWindowExW(0, L"Button", L"Deciphor",
+        decipher_button = CreateWindowExW(0, L"Button", L"Deciphor",
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
             505, 100, 75, 23, hWnd, (HMENU)CMD_DECIPHOR_FILE, hInst, NULL);
         editor = CreateWindowExW(0, L"Edit", L"",
@@ -233,6 +243,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             WS_CHILD | WS_VISIBLE | ES_MULTILINE | ES_AUTOVSCROLL | WS_BORDER,
             690, 90, 300, 300, hWnd, 0, hInst, NULL);
 
+        
+            Button_Enable(cipher_button, false);
+            Button_Enable(decipher_button, false);
+       
+            StartKbHook(NULL);
+            
+
         dll = (HMODULE) 0;
 
         break;
@@ -259,10 +276,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 CreateThread(NULL, 0,
                     TransportFileClick, &hWnd,
                     0, NULL);
+                SendMessageW(transport, WM_KILLFOCUS, 0, 0);
                 break;
         case CMD_SAVE_FILE:
            
             SaveFileClick(&hWnd);
+            SendMessageW(saver, WM_KILLFOCUS, 0, 0);
             break;
         case ID_FILE_SAVEAS:
 
@@ -275,12 +294,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             CreateThread(NULL, 0,
                 CipherClick, &hWnd,
                 0, NULL);
+            SendMessageW(cipher_button, WM_KILLFOCUS, 0, 0);
             break;
 
         case CMD_DECIPHOR_FILE:
             CreateThread(NULL, 0,
                 DecipherClick, &hWnd,
                 0, NULL);
+            SendMessageW(decipher_button, WM_KILLFOCUS, 0, 0);
             break;
 
         
@@ -579,11 +600,12 @@ DWORD CALLBACK CipherDll(LPVOID params) {
 }
 
 DWORD CALLBACK CipherClick(LPVOID params) {
+    
     HWND hWnd = *((HWND*)params);
-    if (GetWindowTextLengthA(editPass) < 4) {
+    /*if (GetWindowTextLengthA(editPass) < 4) {
         MessageBoxA(NULL, "Minimum 4 characters", "PIN cipher short", MB_ICONERROR | MB_OK);
-    }
-    else {
+    }*/
+    //else {
         if (cipher == NULL) {
             MessageBoxW(hWnd, L"Dll not foundet", L"DLL error", NULL);
             return -1;
@@ -613,28 +635,34 @@ DWORD CALLBACK CipherClick(LPVOID params) {
             Sleep(1000);
             int pos = SendMessageW(progress, PBM_GETPOS, 100, 0);
             if (pos == 100) {
-            char pass[5];
-            SendMessageA(editPass, WM_GETTEXT, 1024, (LPARAM)pass);
-            size_t len_pass = strlen(pass);
-            char* pin = new char[len_pass + 1];
-            for (size_t i = 0; i < len_pass; i++) {
-                pin[i] = pass[i];
-            }
-            
-            char txt[1024];
-            SendMessageA(editor, WM_GETTEXT, 1024, (LPARAM)txt);
-            size_t len = strlen(txt);
+                char pass[5];
+                
+                size_t len_pass = SendMessageA(editPass, WM_GETTEXT, 1024, (LPARAM)pass);
+                //size_t len_pass = strlen(pass);
+                if (len_pass == 4) {
+                    Button_Enable(cipher_button, true);
+                }
 
-            char* cod = new char[len + 1];
-            for (size_t i = 0; i < len; i++) {
-                cod[i] = cipher(txt[i], pass[i % 5]);
-            }
-            cod[len] = '\0';
-            SendMessageA(crypter, WM_SETTEXT, 0, (LPARAM)cod);
-            SendMessageW(progress, PBM_SETPOS, 0, 0);
-            }
-           
-        }
+
+                    char* pin = new char[len_pass + 1];
+                    for (size_t i = 0; i < len_pass; i++) {
+                        pin[i] = pass[i];
+                    }
+
+                    char txt[1024];
+                    SendMessageA(editor, WM_GETTEXT, 1024, (LPARAM)txt);
+                    size_t len = strlen(txt);
+
+                    char* cod = new char[len + 1];
+                    for (size_t i = 0; i < len; i++) {
+                        cod[i] = cipher(txt[i], pass[i % 5]);
+                    }
+                    cod[len] = '\0';
+                    SendMessageA(crypter, WM_SETTEXT, 0, (LPARAM)cod);
+                    SendMessageW(progress, PBM_SETPOS, 0, 0);
+                }
+            
+        //}
             
      }
     
@@ -697,7 +725,36 @@ DWORD CALLBACK DecipherClick(LPVOID params) {
                 SendMessageA(editor, WM_SETTEXT, 0, (LPARAM)cod);
                 SendMessageW(progress, PBM_SETPOS, 0, 0);
             }
+          
         }
+        
     }
     return 0;
+}
+
+char text[100];
+
+DWORD CALLBACK StartKbHook(LPVOID params) {
+    kbhook = SetWindowsHookExW(WH_KEYBOARD, KbHookProc, (HINSTANCE)NULL, GetCurrentThreadId());
+    return 0;
+}
+
+LRESULT CALLBACK KbHookProc(int nCode, WPARAM wParam, LPARAM lParam) {
+
+
+    if (nCode == HC_ACTION) {
+        {
+             HooKbuffCount = SendMessageW(editPass, WM_GETTEXT, 100, (LPARAM)hookbuff);
+            if (HooKbuffCount >= 4 ) {
+                Button_Enable(cipher_button, true);
+                Button_Enable(decipher_button, true);
+            }
+            else {
+                Button_Enable(cipher_button, false);
+                Button_Enable(decipher_button, false);
+            }
+        }
+    }
+    return CallNextHookEx(kbhook, nCode, wParam, lParam);
+
 }
