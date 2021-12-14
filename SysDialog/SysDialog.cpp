@@ -562,41 +562,56 @@ DWORD CALLBACK CipherDll(LPVOID params) {
     HWND hWnd = *((HWND*)params);
 
     if (dll == 0) {
-        dll = LoadLibraryA(DLL_FILE_NAME);
-        if (dll == 0) {
-            SendMessageW(editor, WM_SETTEXT, 0, (LPARAM)"Dll not found");
-            return -1;
-            
+
+        if (IDYES == MessageBoxW(hWnd, L"Dll not foundet, are you need to include?", L"DLL error", MB_YESNO)) {
+            WCHAR fname[512] = L"\0";
+
+            OPENFILENAMEW ofn;
+            ZeroMemory(&ofn, sizeof(ofn));
+            ofn.lStructSize = sizeof(ofn);
+            ofn.hwndOwner = hWnd;
+            ofn.hInstance = hInst;
+            ofn.lpstrFile = fname;
+            ofn.nMaxFile = 512;
+            ofn.lpstrFilter = L"All files\0*.*\0Text files\0*.txt\0\0";
+            if (GetOpenFileName(&ofn)) {
+                dll = LoadLibraryA(DLL_FILE_NAME);
+
+
+
+
+            }
+            cipher = (crypto_t)GetProcAddress(dll, "Cipher");
+            if (cipher == NULL) {
+                SendMessageW(editor, WM_SETTEXT, 0, (LPARAM)"Cipher not located");
+                CloseHandle(dll);
+                dll = (HMODULE)0;
+                return -2;
+            }
+            decipher = (crypto_t)GetProcAddress(dll, "Decipher");
+            if (decipher == NULL) {
+                SendMessageW(editor, WM_SETTEXT, 0, (LPARAM)"Decipher not located");
+                CloseHandle(dll);
+                dll = (HMODULE)0;
+                return -3;
+            }
+
         }
-        cipher = (crypto_t)GetProcAddress(dll, "Cipher");
-        if (cipher == NULL) {
-            SendMessageW(editor, WM_SETTEXT, 0, (LPARAM)"Cipher not located");
-            CloseHandle(dll);
-            dll = (HMODULE) 0;
-            return -2;
-        }
-        decipher = (crypto_t)GetProcAddress(dll, "Decipher");
-        if (decipher == NULL) {
-            SendMessageW(editor, WM_SETTEXT, 0, (LPARAM)"Decipher not located");
-            CloseHandle(dll);
-            dll = (HMODULE)0;
-            return -3;
-        }
+        char c = 'c', p = 'p', d, s;
+        s = cipher(c, p);
+        d = decipher(s, p);
+
+        WCHAR wc, wp, wd, ws;
+        mbstowcs(&wc, &c, 1);
+        mbstowcs(&wp, &p, 1);
+        mbstowcs(&wd, &d, 1);
+        mbstowcs(&ws, &s, 1);
+        WCHAR str[100];
+        _snwprintf_s(str, 100, L"%c ^ %c -> %c; %c ^ %c -> %c",
+            wc, wp, ws, ws, wp, wd);
+        SendMessageW(editor, WM_SETTEXT, 0, (LPARAM)str);
+        return 0;
     }
-    char c = 'c', p = 'p', d, s;
-    s = cipher(c, p);
-    d = decipher(s, p);
-   
-    WCHAR wc, wp, wd, ws;
-    mbstowcs(&wc, &c, 1);
-    mbstowcs(&wp, &p, 1);
-    mbstowcs(&wd, &d, 1);
-    mbstowcs(&ws, &s, 1);
-    WCHAR str[100];
-    _snwprintf_s(str, 100, L"%c ^ %c -> %c; %c ^ %c -> %c",
-        wc, wp, ws, ws, wp, wd);
-    SendMessageW(editor, WM_SETTEXT, 0, (LPARAM)str);
-    return 0;
 }
 
 DWORD CALLBACK CipherClick(LPVOID params) {
@@ -607,7 +622,7 @@ DWORD CALLBACK CipherClick(LPVOID params) {
     }*/
     //else {
         if (cipher == NULL) {
-            MessageBoxW(hWnd, L"Dll not foundet", L"DLL error", NULL);
+            MessageBoxW(hWnd, L"Dll not foundet, are you need to include?", L"DLL error", MB_YESNO);
             return -1;
         }
         else{
