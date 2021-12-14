@@ -24,8 +24,6 @@
 #define CMD_STOP_EDIT_FILE  1007
 #define CMD_TRANSPORT_FILE_DATA 1008
 #define CMD_TEST_DLL 1009
-#define CMD_CIPHER 1010
-#define CMD_CIPHER2 1011
 #define DLL_FILE_NAME "CipherDll.dll"
 
 typedef char (*crypto_t)(char, char);
@@ -50,6 +48,8 @@ OPENFILENAMEW ofn;
 HANDLE hFile1;
 HANDLE hFile2;
 LPCSTR path_to_file;
+
+
 
 // Отправить объявления функций, включенных в этот модуль кода:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -190,9 +190,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         fNameStatic2 = CreateWindowExW(0, L"Edit", L"Destination file",
             WS_CHILD | WS_VISIBLE | ES_MULTILINE | ES_READONLY | ES_AUTOHSCROLL,
             10, 40, 400, 23, hWnd, 0, hInst, NULL);
-        editPass = CreateWindowExW(0, L"Edit", (LPWSTR)L"",
-            WS_CHILD |WS_BORDER | WS_VISIBLE |ES_PASSWORD,
-           420, 70, 160, 23, hWnd, 0, hInst, NULL);
+        CreateWindowExW(0, L"Static", L"cipher PIN",
+            WS_CHILD | WS_BORDER | WS_VISIBLE | ES_CENTER,
+            440, 70, 100, 23, hWnd, 0, hInst, NULL);
+        editPass = CreateWindowExW(0, L"Edit", L"",
+            WS_CHILD |WS_BORDER | WS_VISIBLE | ES_CENTER |ES_PASSWORD ,
+           530, 70, 32, 23, hWnd, 0, hInst, NULL);
         CreateWindowExW(0, L"Button", L"Ciphor",
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
             420, 100, 75, 23, hWnd, (HMENU)CMD_CIPHOR_FILE, hInst, NULL);
@@ -224,12 +227,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
             450, 190, 100, 23, hWnd, (HMENU)CMD_TEST_DLL, hInst, NULL);
 
-        CreateWindowExW(0, L"Button", L">>>",
-            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-            450, 290, 100, 23, hWnd, (HMENU)CMD_CIPHER, hInst, NULL);
-        CreateWindowExW(0, L"Button", L"<<<",
-            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-            450, 320, 100, 23, hWnd, (HMENU)CMD_CIPHER2, hInst, NULL);
+       
 
         crypter = CreateWindowExW(0, L"Edit", L"",
             WS_CHILD | WS_VISIBLE | ES_MULTILINE | ES_AUTOVSCROLL | WS_BORDER,
@@ -571,18 +569,24 @@ DWORD CALLBACK CipherDll(LPVOID params) {
 DWORD CALLBACK CipherClick(LPVOID params) {
     HWND hWnd = *((HWND*)params);
     if (GetWindowTextLengthA(editPass) > 4) {
-
-        MessageBoxA(NULL, "Password should be less than 4 characters", "Password is too big", MB_ICONERROR | MB_OK);
+        MessageBoxA(NULL, "max 4 characters", "PIN cipher long", MB_ICONERROR | MB_OK);
     }
     else {
         if (cipher == NULL) {
-            MessageBoxW(hWnd, L"Press TestDll", L"DLL error", NULL);
+            MessageBoxW(hWnd, L"Dll not foundet", L"DLL error", NULL);
             return -1;
         }
-
-        char pass[5];
-        SendMessageA(editPass, WM_GETTEXT, 0, (LPARAM)pass);
-        if (pass != NULL) {
+        else{
+            
+            SendMessageW(progress, PBM_DELTAPOS, 1, 0);
+            char pass[5];
+            SendMessageA(editPass, WM_GETTEXT, 1024, (LPARAM)pass);
+            size_t len_pass = strlen(pass);
+            char* pin = new char[len_pass + 1];
+            for (size_t i = 0; i < len_pass; i++) {
+                pin[i] = pass[i];
+            }
+            
             char txt[1024];
             SendMessageA(editor, WM_GETTEXT, 1024, (LPARAM)txt);
             size_t len = strlen(txt);
@@ -593,11 +597,8 @@ DWORD CALLBACK CipherClick(LPVOID params) {
             }
             cod[len] = '\0';
             SendMessageA(crypter, WM_SETTEXT, 0, (LPARAM)cod);
-       }
-        else {
-            SendMessageA(editPass, WM_GETTEXT, 1024, (LPARAM)L"Oh no");
+           
         }
-  
             
      }
     
@@ -609,16 +610,34 @@ DWORD CALLBACK CipherClick(LPVOID params) {
 
 DWORD CALLBACK DecipherClick(LPVOID params) {
     HWND hWnd = *((HWND*)params);
-    char txt[1024];
-    SendMessageA(crypter, WM_GETTEXT, 1024, (LPARAM)txt);
-    size_t len = strlen(txt);
-    char pass[5];
-    char* cod = new char[len + 1];
-    for (size_t i = 0; i < len; i++) {
-        cod[i] = decipher(txt[i], pass[i % 5]);
+    if (GetWindowTextLengthA(editPass) > 4) {
+        MessageBoxA(NULL, "max 4 characters", "PIN cipher long", MB_ICONERROR | MB_OK);
     }
-    cod[len] = '\0';
-    SendMessageA(editor, WM_SETTEXT, 0, (LPARAM)cod);
+    else {
+        if (cipher == NULL) {
+            MessageBoxW(hWnd, L"Dll not foundet", L"DLL error", NULL);
+            return -1;
+        }
+        else {
+            char pass[5];
+            SendMessageA(editPass, WM_GETTEXT, 1024, (LPARAM)pass);
+            size_t len_pass = strlen(pass);
+            char* pin = new char[len_pass + 1];
+            for (size_t i = 0; i < len_pass; i++) {
+                pin[i] = pass[i];
+            }
+    
+          char txt[1024];
+             SendMessageA(crypter, WM_GETTEXT, 1024, (LPARAM)txt);
+             size_t len = strlen(txt);
 
+            char* cod = new char[len + 1];
+             for (size_t i = 0; i < len; i++) {
+                cod[i] = decipher(txt[i], pass[i % 5]);
+             }
+                 cod[len] = '\0';
+                SendMessageA(editor, WM_SETTEXT, 0, (LPARAM)cod);
+    }
     return 0;
+    }
 }
