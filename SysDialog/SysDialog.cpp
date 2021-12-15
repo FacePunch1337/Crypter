@@ -406,7 +406,7 @@ DWORD CALLBACK OpenFileClick2(LPVOID  params) {
 
     HWND hWnd = *((HWND*)params);
 
-    WCHAR fname[512] = L"Hello.txt\0";
+    WCHAR fname[512] = L"0";
 
     OPENFILENAMEW ofn;
 
@@ -450,10 +450,7 @@ DWORD CALLBACK OpenFileClick2(LPVOID  params) {
                         (LPARAM)L"File read error");
                 }
             }
-            else {
-                SendMessageW(editor, WM_SETTEXT, 0,
-                    (LPARAM)L"File is empty");
-            }
+           
             CloseHandle(hFile2);
            
         }
@@ -516,10 +513,25 @@ DWORD CALLBACK SaveFileClick(LPVOID params) {
     return 0;
 }
 
+//char srcName[512] = "0";
 DWORD CALLBACK TransportFileClick(LPVOID params) {
     HWND hWnd = *((HWND*)params);
-
+    WCHAR str[1024];
+    SendMessageW(editor, WM_GETTEXT, 0, (LPARAM)str);
     
+   /* OPENFILENAMEA ofn;
+    ZeroMemory(&ofn, sizeof(OPENFILENAMEA));
+    ofn.lStructSize = sizeof(OPENFILENAMEA);
+    ofn.hwndOwner = hWnd;
+    ofn.hInstance = hInst;
+    ofn.lpstrFile = srcName;
+    ofn.nMaxFile = 512;
+        
+    if (GetOpenFileNameA(&ofn)) {
+
+        
+
+    }*/
 
 
     return 0;
@@ -568,8 +580,8 @@ DWORD CALLBACK CipherDll(LPVOID params) {
 
 DWORD CALLBACK CipherClick(LPVOID params) {
     HWND hWnd = *((HWND*)params);
-    if (GetWindowTextLengthA(editPass) > 4) {
-        MessageBoxA(NULL, "max 4 characters", "PIN cipher long", MB_ICONERROR | MB_OK);
+    if (GetWindowTextLengthA(editPass) < 4) {
+        MessageBoxA(NULL, "Minimum 4 characters", "PIN cipher short", MB_ICONERROR | MB_OK);
     }
     else {
         if (cipher == NULL) {
