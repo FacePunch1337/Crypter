@@ -18,12 +18,13 @@
 #define CMD_OPEN_FIRST_FILE 1001
 #define CMD_OPEN_SECOND_FILE 1002
 #define CMD_SAVE_FILE  1003
-#define ID_FILE_SAVEAS  1004
-#define CMD_CIPHOR_FILE  1005
-#define CMD_DECIPHOR_FILE  1006
-#define CMD_STOP_EDIT_FILE  1007
-#define CMD_TRANSPORT_FILE_DATA 1008
-#define CMD_TEST_DLL 1009
+#define CMD_SAVE_FILE2  1004
+#define ID_FILE_SAVEAS  1005
+#define CMD_CIPHOR_FILE  1006
+#define CMD_DECIPHOR_FILE  1007
+#define CMD_STOP_EDIT_FILE  1008
+#define CMD_TRANSPORT_FILE_DATA 1009
+#define CMD_TEST_DLL 1010
 #define DLL_FILE_NAME "CipherDll.dll"
 
 typedef char (*crypto_t)(char, char);
@@ -40,6 +41,7 @@ HWND  fNameStatic;
 HWND  fNameStatic2;
 HWND  editor, crypter;
 HWND  saver;
+HWND  saver2;
 HWND  transport;
 HWND  editPass;
 HWND progress;
@@ -49,6 +51,8 @@ HHOOK kbhook;
 char f1content[1024] = "\0";
 char f2content[1024] = "\0";
 
+bool bsave1 = false;
+bool bsave2 = false;
 OPENFILENAMEW ofn;
 HANDLE hFile1;
 HANDLE hFile2;
@@ -65,6 +69,7 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 DWORD   CALLBACK    OpenFileClick(LPVOID);
 DWORD   CALLBACK    OpenFileClick2(LPVOID);
 DWORD   CALLBACK    SaveFileClick(LPVOID);
+
 DWORD   CALLBACK    TransportFileClick(LPVOID);
 DWORD   CALLBACK    CipherDll(LPVOID);
 DWORD   CALLBACK    CipherClick(LPVOID);
@@ -219,6 +224,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         saver = CreateWindowExW(0, L"Button", L"Save",
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
             150, 400, 75, 23, hWnd, (HMENU)CMD_SAVE_FILE, hInst, NULL);
+        saver2 = CreateWindowExW(0, L"Button", L"Save",
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            800, 400, 75, 23, hWnd, (HMENU)CMD_SAVE_FILE2, hInst, NULL);
         transport = CreateWindowExW(0, L"Button", L"Transport",
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
             235, 400, 75, 23, hWnd, (HMENU)CMD_TRANSPORT_FILE_DATA, hInst, NULL);
@@ -279,7 +287,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 SendMessageW(transport, WM_KILLFOCUS, 0, 0);
                 break;
         case CMD_SAVE_FILE:
-           
+            bsave1 = true;
+            SaveFileClick(&hWnd);
+            SendMessageW(saver, WM_KILLFOCUS, 0, 0);
+            break;
+        case CMD_SAVE_FILE2:
+            bsave2 = true;
             SaveFileClick(&hWnd);
             SendMessageW(saver, WM_KILLFOCUS, 0, 0);
             break;
@@ -287,6 +300,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             SaveFileClick(&hWnd);
             break;
+
         case CMD_TEST_DLL:
             CipherDll(&hWnd);
             break;
@@ -362,7 +376,7 @@ DWORD CALLBACK OpenFileClick(LPVOID  params) {
     HWND hWnd = *((HWND*)params);
 
     WCHAR fname[512] = L"Hello.txt\0";
-
+    
     OPENFILENAMEW ofn;
 
     ZeroMemory(&ofn, sizeof(ofn));
@@ -484,55 +498,104 @@ DWORD CALLBACK OpenFileClick2(LPVOID  params) {
     return 0;
 }
 
-
+char srcName[512] = "\0";
+char destName[512] = "\0";
 
 DWORD CALLBACK SaveFileClick(LPVOID params) {
     HWND hWnd = *((HWND*)params);
 
-  
-    SendMessageA(editor, WM_GETTEXT, 1024, (LPARAM)f1content);
+    if (bsave1 == true) {
+        SendMessageA(editor, WM_GETTEXT, 1024, (LPARAM)f1content);
 
-    WCHAR fname[512] = L"\0";
-
-    OPENFILENAMEW ofn;
-    ZeroMemory(&ofn, sizeof(ofn));
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = hWnd;
-    ofn.hInstance = hInst;
-    ofn.lpstrFile = fname;
-    ofn.nMaxFile = 512;
-    ofn.lpstrFilter = L"All files\0*.*\0Text files\0*.txt\0\0";
-
-    if (GetSaveFileNameW(&ofn)) {
        
-        hFile1 = CreateFileW(
-            fname, GENERIC_WRITE, 0, NULL,
-            CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
-        if (hFile1 == 0) {
-            SendMessageW(editor, WM_SETTEXT, 0,
-                (LPARAM)L"File open error");
-            return -1;
-        }
-        else {
-            DWORD write;
-            if (!WriteFile(hFile1, f1content, strnlen_s(f1content, 1024), &write, NULL)) {
+        OPENFILENAMEW ofn;
+        ZeroMemory(&ofn, sizeof(ofn));
+        ofn.lStructSize = sizeof(ofn);
+        ofn.hwndOwner = hWnd;
+        ofn.hInstance = hInst;
+        ofn.lpstrFile = (LPWSTR)srcName;
+        ofn.nMaxFile = 512;
+        ofn.lpstrFilter = L"All files\0*.*\0Text files\0*.txt\0C++ code file\0*.cpp;*.c\0\0";
 
-                MessageBoxA(hWnd, "write error", "write error", MB_OK | MB_ICONWARNING);
-                  
+        if (GetSaveFileNameW(&ofn)) {
+            
+            hFile1 = CreateFileW(
+                (LPCWSTR)srcName, GENERIC_WRITE, 0, NULL,
+                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
+            if (hFile1 == 0) {
                 SendMessageW(editor, WM_SETTEXT, 0,
-                    (LPARAM)L"write error");
+                    (LPARAM)L"File open error");
+                return -1;
             }
-           
-            CloseHandle(hFile1);
+            else {
+                DWORD write;
+                if (!WriteFile(hFile1, f1content, strnlen_s(f1content, 1024), &write, NULL)) {
+
+                    MessageBoxA(hWnd, "write error", "write error", MB_OK | MB_ICONWARNING);
+
+
+                    SendMessageW(editor, WM_SETTEXT, 0,
+                        (LPARAM)L"write error");
+                }
+
+                CloseHandle(hFile1);
+            }
+            
         }
+        bsave1 = false;
     }
+  
+    if(bsave2 == true) {
+        SendMessageA(crypter, WM_GETTEXT, 1024, (LPARAM)f2content);
+
+        
+
+        OPENFILENAMEW ofn;
+        ZeroMemory(&ofn, sizeof(ofn));
+        ofn.lStructSize = sizeof(ofn);
+        ofn.hwndOwner = hWnd;
+        ofn.hInstance = hInst;
+        ofn.lpstrFile = (LPWSTR)destName;
+        ofn.nMaxFile = 512;
+        ofn.lpstrFilter = L"All files\0*.*\0Text files\0*.txt\0C++ code file\0*.cpp;*.c\0\0";
+
+        if (GetSaveFileNameW(&ofn)) {
+
+            hFile2 = CreateFileW(
+                (LPWSTR)destName, GENERIC_WRITE, 0, NULL,
+                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+            if (hFile2 == 0) {
+                SendMessageW(crypter, WM_SETTEXT, 0,
+                    (LPARAM)L"File open error");
+                return -1;
+            }
+            else {
+                DWORD write;
+                if (!WriteFile(hFile2, f2content, strnlen_s(f2content, 1024), &write, NULL)) {
+
+                    MessageBoxA(hWnd, "write error", "write error", MB_OK | MB_ICONWARNING);
+
+
+                    SendMessageW(crypter, WM_SETTEXT, 0,
+                        (LPARAM)L"write error");
+                }
+
+                CloseHandle(hFile2);
+            }
+        }
+        bsave2 = false;
+    }
+    
 
  
 
     return 0;
 }
+
+
 
 //char srcName[512] = "0";
 DWORD CALLBACK TransportFileClick(LPVOID params) {
@@ -560,43 +623,24 @@ DWORD CALLBACK TransportFileClick(LPVOID params) {
 
 DWORD CALLBACK CipherDll(LPVOID params) {
     HWND hWnd = *((HWND*)params);
-
-    if (dll == 0) {
-
-        if (IDYES == MessageBoxW(hWnd, L"Dll not foundet, are you need to include?", L"DLL error", MB_YESNO)) {
-            WCHAR fname[512] = L"\0";
-
-            OPENFILENAMEW ofn;
-            ZeroMemory(&ofn, sizeof(ofn));
-            ofn.lStructSize = sizeof(ofn);
-            ofn.hwndOwner = hWnd;
-            ofn.hInstance = hInst;
-            ofn.lpstrFile = fname;
-            ofn.nMaxFile = 512;
-            ofn.lpstrFilter = L"All files\0*.*\0Text files\0*.txt\0\0";
-            if (GetOpenFileName(&ofn)) {
-                dll = LoadLibraryA(DLL_FILE_NAME);
-
-
-
-
-            }
-            cipher = (crypto_t)GetProcAddress(dll, "Cipher");
-            if (cipher == NULL) {
-                SendMessageW(editor, WM_SETTEXT, 0, (LPARAM)"Cipher not located");
-                CloseHandle(dll);
-                dll = (HMODULE)0;
-                return -2;
-            }
-            decipher = (crypto_t)GetProcAddress(dll, "Decipher");
-            if (decipher == NULL) {
-                SendMessageW(editor, WM_SETTEXT, 0, (LPARAM)"Decipher not located");
-                CloseHandle(dll);
-                dll = (HMODULE)0;
-                return -3;
-            }
-
+    dll = LoadLibraryA(DLL_FILE_NAME);
+    if (dll != 0){
+       
+        cipher = (crypto_t)GetProcAddress(dll, "Cipher");
+        if (cipher == NULL) {
+            SendMessageW(editor, WM_SETTEXT, 0, (LPARAM)"Cipher not located");
+            CloseHandle(dll);
+            dll = (HMODULE)0;
+            return -2;
         }
+        decipher = (crypto_t)GetProcAddress(dll, "Decipher");
+        if (decipher == NULL) {
+            SendMessageW(editor, WM_SETTEXT, 0, (LPARAM)"Decipher not located");
+            CloseHandle(dll);
+            dll = (HMODULE)0;
+            return -3;
+        }
+    
         char c = 'c', p = 'p', d, s;
         s = cipher(c, p);
         d = decipher(s, p);
@@ -610,8 +654,39 @@ DWORD CALLBACK CipherDll(LPVOID params) {
         _snwprintf_s(str, 100, L"%c ^ %c -> %c; %c ^ %c -> %c",
             wc, wp, ws, ws, wp, wd);
         SendMessageW(editor, WM_SETTEXT, 0, (LPARAM)str);
-        return 0;
     }
+    if (dll == 0) {
+
+        if (IDYES == MessageBoxW(hWnd, L"Dll not foundet, are you need to include?", L"DLL error", MB_YESNO)) {
+
+
+            WCHAR fname[512] = L"\0";
+       
+            OPENFILENAMEW ofn;
+            ZeroMemory(&ofn, sizeof(ofn));
+            ofn.lStructSize = sizeof(ofn);
+            ofn.hwndOwner = hWnd;
+            ofn.hInstance = hInst;
+            ofn.lpstrFile = fname;
+            ofn.nMaxFile = 512;
+            ofn.lpstrFilter = L"All files\0*.*\0DLL\0*.dll\0C++ code file\0*.cpp;*.c\0\0";
+       
+             if (GetOpenFileName(&ofn)) {
+                dll = LoadLibraryA(DLL_FILE_NAME);
+
+            }
+            
+            
+        }
+        else{
+            exit(0);
+        }
+    }
+       
+        
+        return 0;
+        
+    
 }
 
 DWORD CALLBACK CipherClick(LPVOID params) {
@@ -621,13 +696,22 @@ DWORD CALLBACK CipherClick(LPVOID params) {
         MessageBoxA(NULL, "Minimum 4 characters", "PIN cipher short", MB_ICONERROR | MB_OK);
     }*/
     //else {
+
         if (cipher == NULL) {
             MessageBoxW(hWnd, L"Dll not foundet, are you need to include?", L"DLL error", MB_YESNO);
             return -1;
         }
         else{
+            FILE* fsrc;
+            fsrc = fopen(srcName, "rb");
+
+            FILE* fdest;
+            fdest = fopen(destName, "wb");
             
-            
+           
+           
+
+          
             SendMessageW(progress, PBM_STEPIT, 10, 0);
             Sleep(30);
             SendMessageW(progress, PBM_STEPIT, 20, 0);
@@ -657,7 +741,7 @@ DWORD CALLBACK CipherClick(LPVOID params) {
                 if (len_pass == 4) {
                     Button_Enable(cipher_button, true);
                 }
-
+              
 
                     char* pin = new char[len_pass + 1];
                     for (size_t i = 0; i < len_pass; i++) {
@@ -668,6 +752,8 @@ DWORD CALLBACK CipherClick(LPVOID params) {
                     SendMessageA(editor, WM_GETTEXT, 1024, (LPARAM)txt);
                     size_t len = strlen(txt);
 
+                    
+
                     char* cod = new char[len + 1];
                     for (size_t i = 0; i < len; i++) {
                         cod[i] = cipher(txt[i], pass[i % 5]);
@@ -677,7 +763,7 @@ DWORD CALLBACK CipherClick(LPVOID params) {
                     SendMessageW(progress, PBM_SETPOS, 0, 0);
                 }
             
-        //}
+          
             
      }
     
