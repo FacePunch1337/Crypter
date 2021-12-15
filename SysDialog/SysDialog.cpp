@@ -578,7 +578,29 @@ DWORD CALLBACK CipherClick(LPVOID params) {
         }
         else{
             
-            SendMessageW(progress, PBM_DELTAPOS, 1, 0);
+            
+            SendMessageW(progress, PBM_STEPIT, 10, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 20, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 30, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 40, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 50, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 60, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 70, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 80, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 90, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 100, 0);
+            Sleep(1000);
+            int pos = SendMessageW(progress, PBM_GETPOS, 100, 0);
+            if (pos == 100) {
             char pass[5];
             SendMessageA(editPass, WM_GETTEXT, 1024, (LPARAM)pass);
             size_t len_pass = strlen(pass);
@@ -597,6 +619,8 @@ DWORD CALLBACK CipherClick(LPVOID params) {
             }
             cod[len] = '\0';
             SendMessageA(crypter, WM_SETTEXT, 0, (LPARAM)cod);
+            SendMessageW(progress, PBM_SETPOS, 0, 0);
+            }
            
         }
             
@@ -619,6 +643,28 @@ DWORD CALLBACK DecipherClick(LPVOID params) {
             return -1;
         }
         else {
+            SendMessageW(progress, PBM_STEPIT, 10, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 20, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 30, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 40, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 50, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 60, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 70, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 80, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 90, 0);
+            Sleep(30);
+            SendMessageW(progress, PBM_STEPIT, 100, 0);
+            Sleep(1000);
+            int pos = SendMessageW(progress, PBM_GETPOS, 100, 0);
+            if (pos == 100) {
             char pass[5];
             SendMessageA(editPass, WM_GETTEXT, 1024, (LPARAM)pass);
             size_t len_pass = strlen(pass);
@@ -637,7 +683,9 @@ DWORD CALLBACK DecipherClick(LPVOID params) {
              }
                  cod[len] = '\0';
                 SendMessageA(editor, WM_SETTEXT, 0, (LPARAM)cod);
+                SendMessageW(progress, PBM_SETPOS, 0, 0);
+            }
+        }
     }
     return 0;
-    }
 }
